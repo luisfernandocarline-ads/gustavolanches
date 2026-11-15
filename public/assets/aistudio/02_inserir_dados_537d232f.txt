@@ -1,0 +1,422 @@
+-- =====================================================================
+-- PROJETO PRATICO INTEGRADOR - BANCO DE DADOS
+-- Lanchonete (Gustavo Lanches)
+-- Etapa 03 - DML: carga de registros (PostgreSQL / Supabase)
+-- Rodar UMA vez, logo depois de 01_criar_tabelas.sql
+--
+-- Dados reais: categorias, produtos, descricoes e precos (cardapio).
+-- Dados de exemplo (trocar pelos reais, se o dono passar): fornecedores,
+-- clientes, estoque, precos dos adicionais, compras e pedidos.
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- CATEGORIA (7)
+-- ---------------------------------------------------------------------
+INSERT INTO categoria (nome) VALUES
+    ('Lanches Tradicionais'),
+    ('Lanches Artesanais'),
+    ('Lanches com Frango'),
+    ('Lanches com Lombo'),
+    ('Lanches com Filé'),
+    ('Omeletes'),
+    ('Batata Frita');
+
+-- ---------------------------------------------------------------------
+-- PRODUTO (25) - cardapio
+-- ---------------------------------------------------------------------
+INSERT INTO produto (id_categoria, nome, descricao, preco)
+SELECT c.id_categoria, v.nome, v.descricao, v.preco
+FROM (VALUES
+    ('Lanches Tradicionais', 'X-Tudo',         'Pão, hambúrguer, presunto, muçarela, bacon, catupiry, ovo, salsicha, milho, tomate e alface', 24.00),
+    ('Lanches Tradicionais', 'X-Especial 2000','Pão, hambúrguer, filé, lombo, frango, presunto, muçarela, bacon, catupiry, ovo, milho, salsicha, tomate e alface', 46.00),
+    ('Lanches Tradicionais', 'X-Bacon',        'Pão, hambúrguer, presunto, muçarela, bacon, ovo, tomate e alface', 23.00),
+    ('Lanches Tradicionais', 'X-Egg Catupiry', 'Pão, hambúrguer, presunto, muçarela, ovo, catupiry, tomate e alface', 23.00),
+    ('Lanches Tradicionais', 'X-Egg Salada',   'Pão, hambúrguer, presunto, muçarela, ovo, tomate e alface', 20.00),
+    ('Lanches Tradicionais', 'X-Burguer',      'Pão, hambúrguer, presunto e muçarela', 15.00),
+    ('Lanches Tradicionais', 'X-Catupa',       'Pão, hambúrguer, presunto, muçarela e catupiry', 20.00),
+    ('Lanches Tradicionais', 'X-Salada',       'Pão, hambúrguer, presunto, muçarela, tomate e alface', 18.00),
+    ('Lanches Tradicionais', 'X-Bauru',        'Pão, presunto, muçarela e tomate', 13.00),
+    ('Lanches Artesanais',   'Especial da Casa',     'Pão, hambúrguer 170g de fraldinha, cheddar americano, barbecue, catupiry, bacon e cebola roxa', 32.00),
+    ('Lanches Artesanais',   'Duplo Cheddar Bacon',  'Pão, 2x hambúrguer 170g, 2x cheddar americano, 2x bacon e 2x catupiry', 38.00),
+    ('Lanches Artesanais',   'Insano',               'Pão, hambúrguer 170g de fraldinha, presunto, muçarela, catupiry, bacon, ovo, tomate e alface', 35.00),
+    ('Lanches Artesanais',   'Big Saboritos',        'Pão, hambúrguer 170g de fraldinha, cheddar americano, doritos, cebola empanada, bacon e barbecue', 34.00),
+    ('Lanches Artesanais',   'Especial Salada',      'Pão, hambúrguer 170g de fraldinha, catupiry, cheddar americano, bacon, tomate, alface e cebola roxa', 33.00),
+    ('Lanches com Frango',   'X-Frango',       'Pão, frango, presunto, muçarela, tomate e alface', 25.00),
+    ('Lanches com Frango',   'X-Frango Tudo',  'Pão, frango, presunto, muçarela, ovo, bacon, catupiry, tomate e alface', 32.00),
+    ('Lanches com Lombo',    'X-Lombo',        'Pão, lombo, presunto, muçarela, tomate e alface', 25.00),
+    ('Lanches com Lombo',    'X-Lombo Tudo',   'Pão, lombo, presunto, muçarela, catupiry, bacon, ovo, tomate e alface', 32.00),
+    ('Lanches com Filé',     'X-Filé',         'Pão, filé mignon, presunto, muçarela, tomate e alface', 35.00),
+    ('Lanches com Filé',     'X-Filé Tudo',    'Pão, filé mignon, presunto, muçarela, bacon, catupiry, ovo, tomate e alface', 43.00),
+    ('Omeletes',             'Omelete de Frango', 'Frango, presunto, muçarela, bacon, catupiry, milho e batata palha', 40.00),
+    ('Omeletes',             'Omelete de Filé',   'Filé mignon, presunto, muçarela, bacon, catupiry, milho e batata palha', 50.00),
+    ('Omeletes',             'Omelete de Lombo',  'Lombo, presunto, muçarela, bacon, catupiry, milho e batata palha', 40.00),
+    ('Batata Frita',         'Batata Frita Grande', 'Porção grande. Sabores: cheddar e bacon ou catupiry e bacon', 36.00),
+    ('Batata Frita',         'Batata Frita Média',  'Porção média. Sabores: cheddar e bacon ou catupiry e bacon', 30.00)
+) AS v(categoria, nome, descricao, preco)
+JOIN categoria c ON c.nome = v.categoria;
+
+-- ---------------------------------------------------------------------
+-- FORNECEDOR (6) - exemplo
+-- ---------------------------------------------------------------------
+INSERT INTO fornecedor (nome, telefone) VALUES
+    ('Frigorífico Boa Carne',      '(35) 3000-1001'),
+    ('Laticínios Serra Azul',      '(35) 3000-1002'),
+    ('Panificadora Bom Pão',       '(35) 3000-1003'),
+    ('Hortifruti do Vale',         '(35) 3000-1004'),
+    ('Granja Ovos Frescos',        '(35) 3000-1005'),
+    ('Distribuidora Doce Sabor',   '(35) 3000-1006');
+
+-- ---------------------------------------------------------------------
+-- INGREDIENTE (22) - exemplo de estoque e preco do adicional
+-- ---------------------------------------------------------------------
+INSERT INTO ingrediente (id_fornecedor, nome, preco_adicional, estoque_atual, estoque_minimo)
+SELECT f.id_fornecedor, v.nome, v.preco_adicional, v.estoque_atual, v.estoque_minimo
+FROM (VALUES
+    ('Panificadora Bom Pão',     'Pão',                           NULL,  120, 40),
+    ('Frigorífico Boa Carne',    'Hambúrguer',                    6.00,   90, 30),
+    ('Frigorífico Boa Carne',    'Hambúrguer de fraldinha 170g',  NULL,   60, 20),
+    ('Frigorífico Boa Carne',    'Presunto',                      2.50,    8,  3),
+    ('Laticínios Serra Azul',    'Muçarela',                      3.00,   10,  4),
+    ('Frigorífico Boa Carne',    'Bacon',                         4.00,    6,  3),
+    ('Laticínios Serra Azul',    'Catupiry',                      3.00,    5,  2),
+    ('Granja Ovos Frescos',      'Ovo',                           2.00,  180, 60),
+    ('Frigorífico Boa Carne',    'Salsicha',                      NULL,    4,  2),
+    ('Distribuidora Doce Sabor', 'Milho',                         1.50,    6,  2),
+    ('Hortifruti do Vale',       'Tomate',                        1.00,    5,  2),
+    ('Hortifruti do Vale',       'Alface',                        1.00,    8,  3),
+    ('Frigorífico Boa Carne',    'Frango',                        NULL,    7,  3),
+    ('Frigorífico Boa Carne',    'Lombo',                         NULL,    7,  3),
+    ('Frigorífico Boa Carne',    'Filé mignon',                   NULL,    5,  2),
+    ('Laticínios Serra Azul',    'Cheddar americano',             3.00,    4,  2),
+    ('Distribuidora Doce Sabor', 'Barbecue',                      2.00,    3,  1),
+    ('Hortifruti do Vale',       'Cebola roxa',                   1.50,    3,  1),
+    ('Distribuidora Doce Sabor', 'Cebola empanada',               NULL,    1,  1),
+    ('Distribuidora Doce Sabor', 'Doritos',                       NULL,   12,  4),
+    ('Distribuidora Doce Sabor', 'Batata palha',                  NULL,    2,  2),
+    ('Hortifruti do Vale',       'Batata',                        NULL,   20,  8)
+) AS v(fornecedor, nome, preco_adicional, estoque_atual, estoque_minimo)
+JOIN fornecedor f ON f.nome = v.fornecedor;
+
+-- ---------------------------------------------------------------------
+-- PRODUTO_INGREDIENTE - composicao de cada lanche
+-- ---------------------------------------------------------------------
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer','Presunto','Muçarela','Bacon','Catupiry','Ovo','Salsicha','Milho','Tomate','Alface'])
+WHERE p.nome = 'X-Tudo';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer','Filé mignon','Lombo','Frango','Presunto','Muçarela','Bacon','Catupiry','Ovo','Milho','Salsicha','Tomate','Alface'])
+WHERE p.nome = 'X-Especial 2000';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer','Presunto','Muçarela','Bacon','Ovo','Tomate','Alface'])
+WHERE p.nome = 'X-Bacon';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer','Presunto','Muçarela','Ovo','Catupiry','Tomate','Alface'])
+WHERE p.nome = 'X-Egg Catupiry';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer','Presunto','Muçarela','Ovo','Tomate','Alface'])
+WHERE p.nome = 'X-Egg Salada';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer','Presunto','Muçarela'])
+WHERE p.nome = 'X-Burguer';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer','Presunto','Muçarela','Catupiry'])
+WHERE p.nome = 'X-Catupa';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer','Presunto','Muçarela','Tomate','Alface'])
+WHERE p.nome = 'X-Salada';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Presunto','Muçarela','Tomate'])
+WHERE p.nome = 'X-Bauru';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer de fraldinha 170g','Cheddar americano','Barbecue','Catupiry','Bacon','Cebola roxa'])
+WHERE p.nome = 'Especial da Casa';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer de fraldinha 170g','Cheddar americano','Bacon','Catupiry'])
+WHERE p.nome = 'Duplo Cheddar Bacon';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer de fraldinha 170g','Presunto','Muçarela','Catupiry','Bacon','Ovo','Tomate','Alface'])
+WHERE p.nome = 'Insano';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer de fraldinha 170g','Cheddar americano','Doritos','Cebola empanada','Bacon','Barbecue'])
+WHERE p.nome = 'Big Saboritos';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Hambúrguer de fraldinha 170g','Catupiry','Cheddar americano','Bacon','Tomate','Alface','Cebola roxa'])
+WHERE p.nome = 'Especial Salada';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Frango','Presunto','Muçarela','Tomate','Alface'])
+WHERE p.nome = 'X-Frango';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Frango','Presunto','Muçarela','Ovo','Bacon','Catupiry','Tomate','Alface'])
+WHERE p.nome = 'X-Frango Tudo';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Lombo','Presunto','Muçarela','Tomate','Alface'])
+WHERE p.nome = 'X-Lombo';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Lombo','Presunto','Muçarela','Catupiry','Bacon','Ovo','Tomate','Alface'])
+WHERE p.nome = 'X-Lombo Tudo';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Filé mignon','Presunto','Muçarela','Tomate','Alface'])
+WHERE p.nome = 'X-Filé';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Pão','Filé mignon','Presunto','Muçarela','Bacon','Catupiry','Ovo','Tomate','Alface'])
+WHERE p.nome = 'X-Filé Tudo';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Ovo','Frango','Presunto','Muçarela','Bacon','Catupiry','Milho','Batata palha'])
+WHERE p.nome = 'Omelete de Frango';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Ovo','Filé mignon','Presunto','Muçarela','Bacon','Catupiry','Milho','Batata palha'])
+WHERE p.nome = 'Omelete de Filé';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Ovo','Lombo','Presunto','Muçarela','Bacon','Catupiry','Milho','Batata palha'])
+WHERE p.nome = 'Omelete de Lombo';
+
+INSERT INTO produto_ingrediente (id_produto, id_ingrediente)
+SELECT p.id_produto, i.id_ingrediente
+FROM produto p
+JOIN ingrediente i ON i.nome = ANY (ARRAY['Batata','Bacon','Cheddar americano','Catupiry'])
+WHERE p.nome IN ('Batata Frita Grande', 'Batata Frita Média');
+
+-- ---------------------------------------------------------------------
+-- CLIENTE (12) - exemplo
+-- ---------------------------------------------------------------------
+INSERT INTO cliente (nome, telefone, endereco) VALUES
+    ('Mariana Souza',         '(35) 99100-0001', 'Rua das Flores, 120 - Centro'),
+    ('Carlos Eduardo Lima',   '(35) 99100-0002', 'Av. Brasil, 845 - Jardim América'),
+    ('Fernanda Alves',        '(35) 99100-0003', 'Rua Minas Gerais, 77 - Vila Nova'),
+    ('João Pedro Santos',     '(35) 99100-0004', 'Rua Sete de Setembro, 310 - Centro'),
+    ('Patrícia Oliveira',     '(35) 99100-0005', 'Rua das Acácias, 59 - Jardim Primavera'),
+    ('Rafael Mendes',         '(35) 99100-0006', 'Rua Tiradentes, 402 - Bela Vista'),
+    ('Juliana Costa',         '(35) 99100-0007', 'Av. Getúlio Vargas, 1500 - Centro'),
+    ('Lucas Ferreira',        '(35) 99100-0008', 'Rua dos Ipês, 88 - Jardim Europa'),
+    ('Camila Rocha',          '(35) 99100-0009', 'Rua Santa Luzia, 215 - Vila Santa Cruz'),
+    ('Bruno Carvalho',        '(35) 99100-0010', 'Rua Dom Pedro II, 640 - Centro'),
+    ('Aline Martins',         '(35) 99100-0011', 'Rua das Palmeiras, 33 - Jardim Planalto'),
+    ('Thiago Ribeiro',        '(35) 99100-0012', 'Rua São José, 190 - Vila Operária');
+
+-- ---------------------------------------------------------------------
+-- PEDIDO (15) - exemplo. valor_total e calculado mais abaixo.
+-- ---------------------------------------------------------------------
+INSERT INTO pedido (id_cliente, data_hora, tipo, status, forma_pagamento) VALUES
+    (1,    '2026-11-02 19:10', 'ENTREGA', 'ENTREGUE',   'PIX'),
+    (NULL, '2026-11-02 19:40', 'BALCAO',  'ENTREGUE',   'DINHEIRO'),
+    (2,    '2026-11-02 20:15', 'ENTREGA', 'ENTREGUE',   'CARTAO'),
+    (3,    '2026-11-03 19:05', 'ENTREGA', 'ENTREGUE',   'PIX'),
+    (11,   '2026-11-03 20:30', 'BALCAO',  'ENTREGUE',   'CARTAO'),
+    (4,    '2026-11-04 19:20', 'ENTREGA', 'ENTREGUE',   'DINHEIRO'),
+    (5,    '2026-11-04 21:00', 'BALCAO',  'ENTREGUE',   'PIX'),
+    (6,    '2026-11-05 19:45', 'ENTREGA', 'ENTREGUE',   'PIX'),
+    (NULL, '2026-11-05 20:10', 'BALCAO',  'ENTREGUE',   'DINHEIRO'),
+    (7,    '2026-11-06 19:30', 'ENTREGA', 'ENTREGUE',   'CARTAO'),
+    (1,    '2026-11-06 20:50', 'ENTREGA', 'ENTREGUE',   'PIX'),
+    (8,    '2026-11-07 19:15', 'ENTREGA', 'ENTREGUE',   'DINHEIRO'),
+    (12,   '2026-11-07 20:00', 'BALCAO',  'ENTREGUE',   'PIX'),
+    (9,    '2026-11-08 19:35', 'ENTREGA', 'EM_PREPARO', 'PIX'),
+    (10,   '2026-11-08 20:20', 'ENTREGA', 'RECEBIDO',   'CARTAO');
+
+-- ---------------------------------------------------------------------
+-- ITEM_PEDIDO (29) - o preco_unitario vem do cardapio
+-- ---------------------------------------------------------------------
+INSERT INTO item_pedido (id_pedido, id_produto, quantidade, preco_unitario, observacao)
+SELECT v.id_pedido, p.id_produto, v.quantidade, p.preco, v.observacao
+FROM (VALUES
+    (1,  'X-Tudo',               2, 'Sem milho'),
+    (1,  'Batata Frita Grande',  1, 'Sabor cheddar e bacon'),
+    (2,  'X-Bacon',              1, NULL),
+    (3,  'X-Frango Tudo',        1, NULL),
+    (3,  'X-Salada',             1, NULL),
+    (4,  'Especial da Casa',     1, NULL),
+    (4,  'Insano',               1, NULL),
+    (4,  'Batata Frita Média',   1, 'Sabor catupiry e bacon'),
+    (5,  'X-Burguer',            2, NULL),
+    (5,  'X-Bauru',              1, NULL),
+    (6,  'X-Egg Salada',         1, NULL),
+    (6,  'X-Egg Catupiry',       1, NULL),
+    (7,  'X-Filé Tudo',          1, NULL),
+    (7,  'X-Tudo',               1, NULL),
+    (8,  'Omelete de Frango',    1, NULL),
+    (8,  'X-Lombo',              1, NULL),
+    (9,  'X-Salada',             2, 'Sem tomate'),
+    (10, 'Duplo Cheddar Bacon',  2, NULL),
+    (10, 'Batata Frita Grande',  1, 'Sabor cheddar e bacon'),
+    (11, 'X-Tudo',               1, NULL),
+    (11, 'X-Catupa',             1, NULL),
+    (12, 'Big Saboritos',        1, NULL),
+    (12, 'Especial Salada',      1, NULL),
+    (12, 'Batata Frita Média',   1, 'Sabor catupiry e bacon'),
+    (13, 'X-Especial 2000',      1, NULL),
+    (14, 'X-Lombo Tudo',         1, NULL),
+    (14, 'Omelete de Lombo',     1, NULL),
+    (15, 'X-Filé',               1, NULL),
+    (15, 'Omelete de Filé',      1, NULL)
+) AS v(id_pedido, produto, quantidade, observacao)
+JOIN produto p ON p.nome = v.produto;
+
+-- ---------------------------------------------------------------------
+-- ITEM_PEDIDO_ADICIONAL (8) - valor = quantidade x preco_adicional
+-- ---------------------------------------------------------------------
+INSERT INTO item_pedido_adicional (id_item_pedido, id_ingrediente, quantidade, valor)
+SELECT ip.id_item_pedido, i.id_ingrediente, v.quantidade, v.quantidade * i.preco_adicional
+FROM (VALUES
+    (2,  'X-Bacon',              'Ovo',               1),
+    (3,  'X-Frango Tudo',        'Cheddar americano', 1),
+    (4,  'Insano',               'Bacon',             1),
+    (6,  'X-Egg Salada',         'Bacon',             1),
+    (7,  'X-Tudo',               'Catupiry',          1),
+    (10, 'Duplo Cheddar Bacon',  'Cebola roxa',       2),
+    (12, 'Big Saboritos',        'Muçarela',          1),
+    (15, 'X-Filé',               'Ovo',               1)
+) AS v(id_pedido, produto, ingrediente, quantidade)
+JOIN produto p        ON p.nome = v.produto
+JOIN item_pedido ip   ON ip.id_pedido = v.id_pedido AND ip.id_produto = p.id_produto
+JOIN ingrediente i    ON i.nome = v.ingrediente;
+
+-- valor_total do pedido = itens + adicionais
+UPDATE pedido p
+SET valor_total =
+      COALESCE((SELECT SUM(ip.quantidade * ip.preco_unitario)
+                FROM item_pedido ip
+                WHERE ip.id_pedido = p.id_pedido), 0)
+    + COALESCE((SELECT SUM(a.valor)
+                FROM item_pedido_adicional a
+                JOIN item_pedido ip ON ip.id_item_pedido = a.id_item_pedido
+                WHERE ip.id_pedido = p.id_pedido), 0);
+
+-- ---------------------------------------------------------------------
+-- COMPRA (10) - exemplo
+-- ---------------------------------------------------------------------
+INSERT INTO compra (id_fornecedor, data_compra)
+SELECT f.id_fornecedor, v.data_compra::date
+FROM (VALUES
+    ('Frigorífico Boa Carne',    '2026-10-26'),
+    ('Laticínios Serra Azul',    '2026-10-26'),
+    ('Panificadora Bom Pão',     '2026-10-27'),
+    ('Hortifruti do Vale',       '2026-10-28'),
+    ('Granja Ovos Frescos',      '2026-10-28'),
+    ('Distribuidora Doce Sabor', '2026-10-30'),
+    ('Frigorífico Boa Carne',    '2026-11-02'),
+    ('Panificadora Bom Pão',     '2026-11-03'),
+    ('Hortifruti do Vale',       '2026-11-05'),
+    ('Laticínios Serra Azul',    '2026-11-06')
+) AS v(fornecedor, data_compra)
+JOIN fornecedor f ON f.nome = v.fornecedor;
+
+-- ---------------------------------------------------------------------
+-- ITEM_COMPRA (23)
+-- ---------------------------------------------------------------------
+INSERT INTO item_compra (id_compra, id_ingrediente, quantidade, valor_unitario)
+SELECT v.id_compra, i.id_ingrediente, v.quantidade, v.valor_unitario
+FROM (VALUES
+    (1,  'Hambúrguer',                   100,  2.80),
+    (1,  'Bacon',                          8, 38.00),
+    (1,  'Presunto',                      10, 32.00),
+    (1,  'Frango',                        10, 22.00),
+    (2,  'Muçarela',                      12, 42.00),
+    (2,  'Catupiry',                       6, 28.00),
+    (2,  'Cheddar americano',              5, 35.00),
+    (3,  'Pão',                          150,  0.90),
+    (4,  'Tomate',                         6,  7.00),
+    (4,  'Alface',                        10,  3.50),
+    (4,  'Batata',                        25,  5.00),
+    (5,  'Ovo',                          200,  0.60),
+    (6,  'Doritos',                       12,  9.00),
+    (6,  'Batata palha',                   5, 18.00),
+    (6,  'Barbecue',                       4, 14.00),
+    (7,  'Hambúrguer de fraldinha 170g',  60,  6.50),
+    (7,  'Filé mignon',                    5, 65.00),
+    (7,  'Lombo',                          8, 30.00),
+    (8,  'Pão',                          100,  0.95),
+    (9,  'Cebola roxa',                    3,  6.00),
+    (9,  'Tomate',                         5,  7.50),
+    (10, 'Muçarela',                      10, 43.00),
+    (10, 'Catupiry',                       5, 28.50)
+) AS v(id_compra, ingrediente, quantidade, valor_unitario)
+JOIN ingrediente i ON i.nome = v.ingrediente;
+
+-- valor_total da compra = soma dos itens
+UPDATE compra c
+SET valor_total = COALESCE((SELECT SUM(ic.quantidade * ic.valor_unitario)
+                            FROM item_compra ic
+                            WHERE ic.id_compra = c.id_compra), 0);
+
+-- ---------------------------------------------------------------------
+-- Conferencia: quantidade de registros por tabela
+-- ---------------------------------------------------------------------
+SELECT 'categoria' AS tabela, COUNT(*) AS registros FROM categoria
+UNION ALL SELECT 'produto', COUNT(*) FROM produto
+UNION ALL SELECT 'fornecedor', COUNT(*) FROM fornecedor
+UNION ALL SELECT 'ingrediente', COUNT(*) FROM ingrediente
+UNION ALL SELECT 'produto_ingrediente', COUNT(*) FROM produto_ingrediente
+UNION ALL SELECT 'cliente', COUNT(*) FROM cliente
+UNION ALL SELECT 'pedido', COUNT(*) FROM pedido
+UNION ALL SELECT 'item_pedido', COUNT(*) FROM item_pedido
+UNION ALL SELECT 'item_pedido_adicional', COUNT(*) FROM item_pedido_adicional
+UNION ALL SELECT 'compra', COUNT(*) FROM compra
+UNION ALL SELECT 'item_compra', COUNT(*) FROM item_compra;

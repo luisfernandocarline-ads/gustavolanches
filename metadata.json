@@ -1,0 +1,8 @@
+{
+  "name": "Remix Gustavo Lanches — Sistema de Pedidos \u0026 Banco de Dados",
+  "description": "Protótipo web de sistema de pedidos, estoque e análise SQL para a lanchonete Gustavo Lanches, baseado fielmente no modelo relacional PostgreSQL.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,197 @@
+-- =====================================================================
+-- PROJETO PRATICO INTEGRADOR - BANCO DE DADOS
+-- Lanchonete (Gustavo Lanches)
+-- Etapa 04 - DQL: consultas analiticas (PostgreSQL / Supabase)
+-- Rodar depois de 01_criar_tabelas.sql e 02_inserir_dados.sql
+-- No Supabase o SQL Editor mostra so o resultado do ultimo comando:
+-- selecione uma consulta por vez e clique em Run (ou Ctrl+Enter).
+-- =====================================================================
+
+
+-- ---------------------------------------------------------------------
+-- 1) Quanto vende por dia? (pergunta do dono)
+--    Faturamento, numero de pedidos e ticket medio de cada dia
+-- ---------------------------------------------------------------------
+SELECT
+    p.data_hora::date                AS dia,
+    COUNT(p.id_pedido)               AS total_pedidos,   -- conta os pedidos do dia
+    SUM(p.valor_total)               AS faturamento,     -- soma o valor vendido
+    ROUND(AVG(p.valor_total), 2)     AS ticket_medio     -- media por pedido
+FROM pedido p
+WHERE p.status <> 'CANCELADO'
+GROUP BY p.data_hora::date
+ORDER BY dia;
+
+
+-- ---------------------------------------------------------------------
+-- 2) Dias de maior movimento: faturamento acima de R$ 150
+-- ---------------------------------------------------------------------
+SELECT
+    p.data_hora::date  AS dia,
+    SUM(p.valor_total) AS faturamento
+FROM pedido p
+WHERE p.status <> 'CANCELADO'
+GROUP BY p.data_hora::date
+HAVING SUM(p.valor_total) > 150           -- filtra os grupos (dias)
+ORDER BY faturamento DESC;
+
+
+-- ---------------------------------------------------------------------
+-- 3) Quanto gastou? Total de compras por mes
+-- ---------------------------------------------------------------------
+SELECT
+    TO_CHAR(c.data_compra, 'YYYY-MM') AS mes,
+    COUNT(c.id_compra)                AS total_compras,
+    SUM(c.valor_total)                AS total_gasto
+FROM compra c
+GROUP BY TO_CHAR(c.data_compra, 'YYYY-MM')
+ORDER BY mes;
+
+
+-- ---------------------------------------------------------------------
+-- 4) Fornecedores que mais receberam: gasto acima de R$ 500
+-- ---------------------------------------------------------------------
+SELECT
+    f.nome             AS fornecedor,
+    COUNT(c.id_compra) AS total_compras,
+    SUM(c.valor_total) AS total_gasto
+FROM fornecedor f
+INNER JOIN compra c ON c.id_fornecedor = f.id_fornecedor
+GROUP BY f.id_fornecedor, f.nome
+HAVING SUM(c.valor_total) > 500
+ORDER BY total_gasto DESC;
+
+
+-- ---------------------------------------------------------------------
+-- 5) Qual lanche vende mais? Ranking de produtos
+-- ---------------------------------------------------------------------
+SELECT
+    pr.nome                                   AS produto,
+    SUM(ip.quantidade)                        AS unidades_vendidas,
+    SUM(ip.quantidade * ip.preco_unitario)    AS faturamento
+FROM produto pr
+INNER JOIN item_pedido ip ON ip.id_produto = pr.id_produto
+INNER JOIN pedido p       ON p.id_pedido   = ip.id_pedido
+WHERE p.status <> 'CANCELADO'
+GROUP BY pr.id_produto, pr.nome
+ORDER BY unidades_vendidas DESC, faturamento DESC
+LIMIT 10;
+
+
+-- ---------------------------------------------------------------------
+-- 6) Faturamento por categoria do cardapio
+-- ---------------------------------------------------------------------
+SELECT
+    ca.nome                                   AS categoria,
+    SUM(ip.quantidade)                        AS unidades_vendidas,
+    SUM(ip.quantidade * ip.preco_unitario)    AS faturamento
+FROM categoria ca
+INNER JOIN produto pr     ON pr.id_categoria = ca.id_categoria
+INNER JOIN item_pedido ip ON ip.id_produto   = pr.id_produto
+INNER JOIN pedido p       ON p.id_pedido     = ip.id_pedido
+WHERE p.status <> 'CANCELADO'
+GROUP BY ca.id_categoria, ca.nome
+ORDER BY faturamento DESC;
+
+
+-- ---------------------------------------------------------------------
+-- 7) Ticket medio: balcao x entrega
+-- ---------------------------------------------------------------------
+SELECT
+    p.tipo                         AS tipo_pedido,
+    COUNT(p.id_pedido)             AS total_pedidos,
+    ROUND(AVG(p.valor_total), 2)   AS ticket_medio,
+    SUM(p.valor_total)             AS faturamento
+FROM pedido p
+WHERE p.status <> 'CANCELADO'
+GROUP BY p.tipo
+ORDER BY faturamento DESC;
+
+
+-- ---------------------------------------------------------------------
+-- 8) Quanto entra por forma de pagamento (dinheiro, Pix, cartao)
+-- ---------------------------------------------------------------------
+SELECT
+    p.forma_pagamento     AS pagamento,
+    COUNT(p.id_pedido)    AS total_pedidos,
+    SUM(p.valor_total)    AS faturamento
+FROM pedido p
+WHERE p.status <> 'CANCELADO'
+GROUP BY p.forma_pagamento
+ORDER BY faturamento DESC;
+
+
+-- ---------------------------------------------------------------------
+-- 9) Clientes frequentes: 2 pedidos ou mais
+-- ---------------------------------------------------------------------
+SELECT
+    c.nome                      AS cliente,
+    COUNT(p.id_pedido)          AS total_pedidos,
+    SUM(p.valor_total)          AS total_gasto,
+    ROUND(AVG(p.valor_total), 2) AS ticket_medio
+FROM cliente c
+INNER JOIN pedido p ON p.id_cliente = c.id_cliente
+WHERE p.status <> 'CANCELADO'
+GROUP BY c.id_cliente, c.nome
+HAVING COUNT(p.id_pedido) >= 2
+ORDER BY total_gasto DESC;
+
+
+-- ---------------------------------------------------------------------
+-- 10) O que esta acabando? Ingredientes no estoque minimo ou abaixo
+-- ---------------------------------------------------------------------
+SELECT
+    i.nome            AS ingrediente,
+    i.estoque_atual,
+    i.estoque_minimo,
+    f.nome            AS fornecedor,
+    f.telefone
+FROM ingrediente i
+INNER JOIN fornecedor f ON f.id_fornecedor = i.id_fornecedor
+WHERE i.estoque_atual <= i.estoque_minimo
+ORDER BY i.estoque_atual - i.estoque_minimo, i.nome;
+
+
+-- ---------------------------------------------------------------------
+-- 11) Adicionais mais pedidos (quais extras os clientes mais colocam)
+-- ---------------------------------------------------------------------
+SELECT
+    i.nome                 AS adicional,
+    SUM(a.quantidade)      AS vezes_pedido,
+    SUM(a.valor)           AS receita_adicionais
+FROM item_pedido_adicional a
+INNER JOIN ingrediente i ON i.id_ingrediente = a.id_ingrediente
+GROUP BY i.id_ingrediente, i.nome
+ORDER BY vezes_pedido DESC, receita_adicionais DESC;
+
+
+-- ---------------------------------------------------------------------
+-- 12) Produtos do cardapio que nunca foram vendidos (LEFT JOIN)
+-- ---------------------------------------------------------------------
+SELECT
+    pr.nome  AS produto,
+    pr.preco
+FROM produto pr
+LEFT JOIN item_pedido ip ON ip.id_produto = pr.id_produto
+WHERE ip.id_item_pedido IS NULL
+ORDER BY pr.nome;
+
+
+-- ---------------------------------------------------------------------
+-- 13) Pedidos em andamento (tela do dono): cliente, tipo e itens
+--     LEFT JOIN porque pedido de balcao pode nao ter cliente
+-- ---------------------------------------------------------------------
+SELECT
+    p.id_pedido,
+    p.data_hora,
+    COALESCE(c.nome, 'Balcão (sem cadastro)') AS cliente,
+    p.tipo,
+    p.status,
+    SUM(ip.quantidade)                        AS total_itens,
+    p.valor_total
+FROM pedido p
+LEFT JOIN cliente c       ON c.id_cliente = p.id_cliente
+INNER JOIN item_pedido ip ON ip.id_pedido = p.id_pedido
+WHERE p.status IN ('RECEBIDO', 'EM_PREPARO', 'PRONTO')
+GROUP BY p.id_pedido, p.data_hora, c.nome, p.tipo, p.status, p.valor_total
+ORDER BY p.data_hora;
