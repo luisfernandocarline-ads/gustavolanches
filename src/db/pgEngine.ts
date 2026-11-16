@@ -33,7 +33,10 @@ import {
   validatePedidoPayload,
 } from '../utils/orderMath.ts';
 
-const DATA_DIR = path.resolve(process.cwd(), 'data', 'gustavo_lanches_pg');
+// Vercel Functions only allow writes under /tmp, so the database lives there (ephemeral per instance).
+const DATA_DIR = process.env.VERCEL
+  ? path.join('/tmp', 'gustavo_lanches_pg')
+  : path.resolve(process.cwd(), 'data', 'gustavo_lanches_pg');
 
 let pgInstance: PGlite | null = null;
 let initPromise: Promise<PGlite> | null = null;
