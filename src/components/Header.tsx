@@ -27,13 +27,13 @@ export function Header({ activeTab, onSelectTab, cartCount, activeOrdersCount }:
             e.preventDefault();
             onSelectTab('pdv');
           }}
-          className="text-lg font-extrabold tracking-tight text-stone-900 whitespace-nowrap shrink-0"
+          className="text-lg font-extrabold tracking-tight text-stone-900 whitespace-nowrap shrink-0 rounded-sm"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           Gustavo Lanches
         </a>
 
-        {/* Zone 2: 5 concise single-line navigation links */}
+        {/* Zone 2: Concise single-line navigation links */}
         <nav aria-label="Navegação principal" className="hidden md:flex items-center gap-6">
           {NAV_ITEMS.map((item) => {
             const isActive = activeTab === item.id;
@@ -42,15 +42,17 @@ export function Header({ activeTab, onSelectTab, cartCount, activeOrdersCount }:
                 key={item.id}
                 type="button"
                 onClick={() => onSelectTab(item.id)}
-                className={`relative py-2 text-sm font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C] rounded-sm ${
+                className={`relative py-2 text-sm transition-colors whitespace-nowrap shrink-0 cursor-pointer rounded-sm ${
                   isActive
                     ? 'text-[#B91C1C] font-semibold'
-                    : 'text-stone-600 hover:text-stone-900'
+                    : 'text-stone-600 font-medium hover:text-stone-900'
                 }`}
                 aria-current={isActive ? 'page' : undefined}
               >
                 {item.label}
-                {item.id === 'pedidos' && activeOrdersCount > 0 ? ` (${activeOrdersCount})` : ''}
+                {item.id === 'pedidos' && activeOrdersCount > 0 ? (
+                  <span className="ml-1 font-mono tabular-nums text-xs">({activeOrdersCount})</span>
+                ) : null}
                 {isActive && (
                   <span
                     aria-hidden="true"
@@ -70,20 +72,20 @@ export function Header({ activeTab, onSelectTab, cartCount, activeOrdersCount }:
               onSelectTab('pdv');
               setTimeout(() => {
                 document.getElementById('checkout-panel')?.scrollIntoView({ behavior: 'smooth' });
-              }, 50);
+              }, 60);
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-[#B91C1C] hover:bg-[#991B1B] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#B91C1C]"
+            className="inline-flex items-center gap-2 min-h-10 px-4 py-2 text-xs font-semibold text-white bg-[#B91C1C] hover:bg-[#991B1B] rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             <ShoppingBag className="w-4 h-4" aria-hidden="true" />
-            <span>{cartCount > 0 ? `Pedido (${cartCount})` : 'Novo Pedido'}</span>
+            <span>{cartCount > 0 ? `Comanda (${cartCount})` : 'Novo Pedido'}</span>
           </button>
         </div>
       </div>
 
-      {/* Mobile secondary nav strip (non-sticky, compact) */}
+      {/* Mobile secondary nav strip (non-sticky, accessible touch height >= 44px) */}
       <nav
         aria-label="Navegação móvel"
-        className="md:hidden border-t border-stone-200 px-4 flex items-center justify-between gap-2 overflow-x-auto"
+        className="md:hidden border-t border-stone-200 px-2 flex items-center justify-between gap-1 overflow-x-auto bg-stone-50/70"
       >
         {NAV_ITEMS.map((item) => {
           const isActive = activeTab === item.id;
@@ -92,10 +94,11 @@ export function Header({ activeTab, onSelectTab, cartCount, activeOrdersCount }:
               key={item.id}
               type="button"
               onClick={() => onSelectTab(item.id)}
-              className={`py-2.5 text-[11px] font-medium whitespace-nowrap shrink-0 border-b-2 ${
+              aria-current={isActive ? 'page' : undefined}
+              className={`min-h-[44px] px-1.5 py-2 text-[11px] whitespace-nowrap shrink-0 border-b-2 transition-colors cursor-pointer ${
                 isActive
                   ? 'text-[#B91C1C] border-[#B91C1C] font-semibold'
-                  : 'text-stone-600 border-transparent hover:text-stone-900'
+                  : 'text-stone-700 border-transparent font-medium hover:text-stone-900'
               }`}
             >
               {item.label}

@@ -4,6 +4,14 @@ import { OrdersView } from './components/OrdersView';
 import { PosMenuView } from './components/PosMenuView';
 import { SchemaExplorerView } from './components/SchemaExplorerView';
 import { SqlAnalyticsView } from './components/SqlAnalyticsView';
+import { upsertCartItem } from './utils/orderMath';
+import {
+  createClienteApi,
+  createPedidoApi,
+  fetchBootstrap as fetchBootstrapApi,
+  resetDatabaseApi,
+  updatePedidoStatusApi,
+} from './services/apiClient';
 import type {
   BootstrapData,
   CartItem,
@@ -24,12 +32,10 @@ export default function App() {
     setLoading(true);
     setLoadError(null);
     try {
-      const res = await fetch('/api/bootstrap');
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Erro ao inicializar banco de dados.');
+      const json = await fetchBootstrapApi();
       setData(json);
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Falha ao conectar com o servidor.');
+      setLoadError(err instanceof Error ? err.message : 'Falha ao conectar com o banco de dados.');
     } finally {
       setLoading(false);
     }
@@ -49,8 +55,8 @@ export default function App() {
     [cart]
   );
 
-  const handleAddToCart = (item: CartItem) => {
-    setCart((prev) => [...prev, item]);
+  const handleUpsertCartItem = (item: CartItem, editingTempId?: string) => {
+    setCart((prev) => upsertCartItem(prev, item, editingTempId));
   };
 
   const handleUpdateCartQty = (tempId: string, delta: number) => {
@@ -70,15 +76,9 @@ export default function App() {
     telefone: string,
     endereco: string
   ): Promise<Cliente> => {
-    const res = await fetch('/api/clientes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, telefone, endereco }),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Erro ao cadastrar cliente.');
-    if (json.bootstrap) setData(json.bootstrap);
-    return json.cliente;
+    const result = await createClienteApi(nome, telefone, endereco);
+    setData(result.bootstrap);
+    return result.cliente;
   };
 
   const handleSubmitOrder = async (payload: {
@@ -87,46 +87,19 @@ export default function App() {
     forma_pagamento: FormaPagamento;
     itens: CartItem[];
   }): Promise<number> => {
-    const res = await fetch('/api/pedidos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tipo: payload.tipo,
-        id_cliente: payload.id_cliente,
-        forma_pagamento: payload.forma_pagamento,
-        itens: payload.itens.map((i) => ({
-          id_produto: i.id_produto,
-          quantidade: i.quantidade,
-          observacao: i.observacao || null,
-          adicionais: i.adicionais.map((a) => ({
-            id_ingrediente: a.id_ingrediente,
-            quantidade: a.quantidade,
-          })),
-        })),
-      }),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Erro ao gravar pedido.');
-    if (json.bootstrap) setData(json.bootstrap);
-    return json.id_pedido;
+    const result = await createPedidoApi(payload);
+    setData(result.bootstrap);
+    return result.id_pedido;
   };
 
   const handleUpdateOrderStatus = async (idPedido: number, status: StatusPedido) => {
-    const res = await fetch(`/api/pedidos/${idPedido}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Erro ao atualizar status.');
-    if (json.bootstrap) setData(json.bootstrap);
+    const result = await updatePedidoStatusApi(idPedido, status);
+    setData(result.bootstrap);
   };
 
   const handleResetDatabase = async () => {
-    const res = await fetch('/api/database/reset', { method: 'POST' });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Erro ao restaurar banco.');
-    if (json.bootstrap) setData(json.bootstrap);
+    const result = await resetDatabaseApi();
+    setData(result.bootstrap);
   };
 
   return (
@@ -138,25 +111,25 @@ export default function App() {
         activeOrdersCount={activeOrdersCount}
       />
 
-      <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-8">
+      <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {loading ? (
-          <div className="bg-white border border-stone-200 rounded-xl p-12 text-center space-y-2">
+          <div className="bg-white border border-stone-200 rounded-xl p-12 text-center space-y-2" role="status">
             <p className="text-base font-semibold text-stone-900">
-              Inicializando banco PostgreSQL (Gustavo Lanches)...
+              Carregando cardápio e pedidos do Gustavo Lanches...
             </p>
-            <p className="text-sm text-stone-500 font-mono">
-              01_criar_tabelas.sql · 02_inserir_dados.sql
+            <p className="text-sm text-stone-600 font-mono">
+              Sincronizando banco PostgreSQL local
             </p>
           </div>
         ) : loadError || !data ? (
-          <div className="bg-white border border-red-200 rounded-xl p-8 text-center space-y-3">
+          <div className="bg-white border border-red-200 rounded-xl p-8 text-center space-y-3" role="alert">
             <p className="text-base font-semibold text-red-900">
               {loadError || 'Não foi possível carregar os dados.'}
             </p>
             <button
               type="button"
               onClick={fetchBootstrap}
-              className="px-4 py-2 text-xs font-semibold text-white bg-[#B91C1C] hover:bg-[#991B1B] rounded-lg cursor-pointer"
+              className="min-h-10 px-4 py-2 text-xs font-semibold text-white bg-[#B91C1C] hover:bg-[#991B1B] rounded-lg cursor-pointer"
             >
               Tentar Novamente
             </button>
@@ -170,7 +143,7 @@ export default function App() {
                 ingredientes={data.ingredientes}
                 clientes={data.clientes}
                 cart={cart}
-                onAddToCart={handleAddToCart}
+                onUpsertCartItem={handleUpsertCartItem}
                 onUpdateCartQty={handleUpdateCartQty}
                 onRemoveFromCart={handleRemoveFromCart}
                 onClearCart={() => setCart([])}

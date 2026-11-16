@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Code2, KeyRound, Link2, RotateCcw, Table2 } from 'lucide-react';
 import { DDL_SQL, SCHEMA_TABLES } from '../db/sqlScripts';
+import { fetchTableRowsApi } from '../services/apiClient';
 import type { TableCount } from '../types/database';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface SchemaExplorerViewProps {
   tableCounts: TableCount[];
@@ -22,39 +24,53 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
     rows: Record<string, unknown>[];
   } | null>(null);
   const [loadingRows, setLoadingRows] = useState(false);
+  const [tableError, setTableError] = useState<string | null>(null);
   const [showDdl, setShowDdl] = useState(false);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const requestSeqRef = useRef(0);
 
   const countMap = new Map(tableCounts.map((c) => [c.tabela, c.registros]));
 
-  const loadTable = async (tableName: string) => {
+  const loadTable = useCallback(async (tableName: string) => {
+    const seq = ++requestSeqRef.current;
     setSelectedTable(tableName);
     setLoadingRows(true);
+    setTableError(null);
     try {
-      const res = await fetch(`/api/tabelas/${encodeURIComponent(tableName)}`);
-      const json = await res.json();
-      if (res.ok) {
-        setTableData({ columns: json.columns, rows: json.rows });
-      }
+      const json = await fetchTableRowsApi(tableName);
+      if (seq !== requestSeqRef.current) return;
+      setTableData({ columns: json.columns, rows: json.rows });
+    } catch (err) {
+      if (seq !== requestSeqRef.current) return;
+      setTableError(err instanceof Error ? err.message : 'Falha ao consultar registros.');
     } finally {
-      setLoadingRows(false);
+      if (seq === requestSeqRef.current) {
+        setLoadingRows(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadTable(selectedTable);
-  }, [tableCounts]);
+  }, [tableCounts, loadTable]);
 
   const activeMeta = SCHEMA_TABLES.find((t) => t.name === selectedTable) ?? SCHEMA_TABLES[0];
 
-  const handleReset = async () => {
+  const handleConfirmReset = async () => {
+    if (resetting) return;
     setResetting(true);
     setResetMessage(null);
+    setResetError(null);
     try {
       await onResetDatabase();
-      await loadTable(selectedTable);
-      setResetMessage('Banco PostgreSQL restaurado com 01_criar_tabelas e 02_inserir_dados.');
+      setConfirmResetOpen(false);
+      setResetMessage('Banco PostgreSQL restaurado com sucesso para os dados iniciais (seed).');
+    } catch (err) {
+      setConfirmResetOpen(false);
+      setResetError(err instanceof Error ? err.message : 'Falha ao restaurar o banco de dados.');
     } finally {
       setResetting(false);
     }
@@ -68,7 +84,7 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
             Modelo Relacional & Inspetor de Tabelas
           </h1>
           <p className="text-sm text-stone-600 mt-1">
-            Esquema fiel ao script <span className="font-mono text-xs text-stone-800">01_criar_tabelas.sql</span>{' '}
+            Esquema PostgreSQL (<span className="font-mono text-xs text-stone-800">01_criar_tabelas.sql</span>)
             com todas as 11 tabelas, chaves primárias, estrangeiras e restrições <span className="font-mono text-xs">CHECK</span>.
           </p>
         </div>
@@ -77,7 +93,8 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
           <button
             type="button"
             onClick={() => setShowDdl((v) => !v)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-stone-800 bg-white border border-stone-300 rounded-lg hover:bg-stone-100 cursor-pointer"
+            aria-expanded={showDdl}
+            className="inline-flex items-center gap-1.5 min-h-10 sm:min-h-9 px-3.5 py-2 text-xs font-semibold text-stone-800 bg-white border border-stone-300 rounded-lg hover:bg-stone-100 cursor-pointer"
           >
             <Code2 className="w-3.5 h-3.5" aria-hidden="true" />
             <span>{showDdl ? 'Ocultar DDL SQL' : 'Ver DDL (01_criar_tabelas)'}</span>
@@ -85,8 +102,8 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
           <button
             type="button"
             disabled={resetting}
-            onClick={handleReset}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-stone-800 bg-white border border-stone-300 rounded-lg hover:bg-stone-100 disabled:opacity-50 cursor-pointer"
+            onClick={() => setConfirmResetOpen(true)}
+            className="inline-flex items-center gap-1.5 min-h-10 sm:min-h-9 px-3.5 py-2 text-xs font-semibold text-[#B91C1C] bg-white border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
             <span>{resetting ? 'Restaurando...' : 'Restaurar Seed Original'}</span>
@@ -103,10 +120,22 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
         </div>
       )}
 
+      {resetError && (
+        <div
+          role="alert"
+          className="p-3.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-900"
+        >
+          {resetError}
+        </div>
+      )}
+
       {showDdl && (
-        <section className="bg-stone-950 text-stone-100 rounded-xl p-5 overflow-x-auto border border-stone-800">
+        <section
+          aria-label="Script DDL PostgreSQL"
+          className="bg-stone-950 text-stone-100 rounded-xl p-5 overflow-x-auto border border-stone-800"
+        >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-mono text-stone-400">
+            <span className="text-xs font-mono text-stone-300">
               01_criar_tabelas.sql (PostgreSQL)
             </span>
           </div>
@@ -115,12 +144,12 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
       )}
 
       {/* Visual Relational Map grouped by domain */}
-      <section aria-label="Mapa das 11 tabelas do modelo relacional" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <section aria-label="Mapa das 11 tabelas do modelo relacional" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {GROUPS.map((group) => {
           const groupTables = SCHEMA_TABLES.filter((t) => t.group === group);
           return (
-            <div key={group} className="bg-white border border-stone-200 rounded-xl p-4 space-y-3">
-              <h2 className="text-xs font-bold text-stone-500 uppercase tracking-wider">
+            <div key={group} className="space-y-2.5">
+              <h2 className="text-xs font-bold text-stone-700 pb-1 border-b border-stone-200">
                 {group}
               </h2>
               <div className="space-y-2.5">
@@ -132,10 +161,11 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
                       key={table.name}
                       type="button"
                       onClick={() => loadTable(table.name)}
-                      className={`w-full text-left p-3 rounded-lg border cursor-pointer ${
+                      aria-current={isSelected ? 'true' : undefined}
+                      className={`w-full text-left p-3.5 rounded-xl border transition-colors cursor-pointer ${
                         isSelected
                           ? 'bg-red-50/70 text-stone-900 border-[#B91C1C] ring-1 ring-[#B91C1C]'
-                          : 'bg-stone-50 text-stone-900 border-stone-200 hover:border-stone-400'
+                          : 'bg-white text-stone-900 border-stone-200 hover:border-stone-400'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -146,7 +176,7 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
                         >
                           {table.name}
                         </span>
-                        <span className="font-mono text-xs tabular-nums text-stone-600">
+                        <span className="font-mono text-xs tabular-nums text-stone-600 shrink-0">
                           {count} reg.
                         </span>
                       </div>
@@ -157,16 +187,16 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
                           return (
                             <li
                               key={col.name}
-                              className="text-[11px] font-mono flex items-center justify-between gap-2 text-stone-700"
+                              className="text-xs font-mono flex items-center justify-between gap-2 text-stone-700"
                             >
                               <span className="flex items-center gap-1 truncate">
-                                {isPk && <KeyRound className="w-3 h-3 shrink-0 text-amber-600" aria-hidden="true" />}
+                                {isPk && <KeyRound className="w-3 h-3 shrink-0 text-amber-700" aria-hidden="true" />}
                                 {!isPk && isFk && (
-                                  <Link2 className="w-3 h-3 shrink-0 text-sky-600" aria-hidden="true" />
+                                  <Link2 className="w-3 h-3 shrink-0 text-sky-700" aria-hidden="true" />
                                 )}
                                 <span className="truncate">{col.name}</span>
                               </span>
-                              <span className="shrink-0 text-stone-500">{col.type}</span>
+                              <span className="shrink-0 text-stone-600">{col.type}</span>
                             </li>
                           );
                         })}
@@ -187,7 +217,7 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
             <div className="flex items-center gap-2">
               <Table2 className="w-4 h-4 text-[#B91C1C]" aria-hidden="true" />
               <h2 className="text-lg font-bold font-mono text-stone-900">{activeMeta.name}</h2>
-              <span className="text-xs text-stone-500 font-mono tabular-nums">
+              <span className="text-xs text-stone-600 font-mono tabular-nums">
                 · {tableData?.rows.length ?? 0} registros ao vivo
               </span>
             </div>
@@ -206,29 +236,40 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
           {activeMeta.columns.map((col) => (
             <div key={col.name} className="font-mono text-stone-700">
               <span className="font-semibold text-stone-900">{col.name}</span>{' '}
-              <span className="text-stone-500">{col.type}</span>
+              <span className="text-stone-600">{col.type}</span>
               {col.constraints.length > 0 && (
-                <span className="text-[#B91C1C]"> [{col.constraints.join(', ')}]</span>
+                <span className="text-[#991B1B]"> [{col.constraints.join(', ')}]</span>
               )}
-              {col.fkTarget && <span className="text-sky-700"> → {col.fkTarget}</span>}
+              {col.fkTarget && <span className="text-sky-800"> → {col.fkTarget}</span>}
             </div>
           ))}
         </div>
 
         {/* Live Data Rows */}
         {loadingRows ? (
-          <div className="p-8 text-center text-sm text-stone-500">
+          <div className="p-8 text-center text-sm text-stone-600">
             Consultando registros em <span className="font-mono">{selectedTable}</span>...
           </div>
+        ) : tableError ? (
+          <div className="p-8 text-center space-y-3">
+            <p className="text-sm font-medium text-red-900">{tableError}</p>
+            <button
+              type="button"
+              onClick={() => loadTable(selectedTable)}
+              className="min-h-9 px-4 py-2 text-xs font-semibold text-white bg-[#B91C1C] hover:bg-[#991B1B] rounded-lg cursor-pointer"
+            >
+              Tentar novamente
+            </button>
+          </div>
         ) : !tableData || tableData.rows.length === 0 ? (
-          <div className="p-8 text-center text-sm text-stone-500">
+          <div className="p-8 text-center text-sm text-stone-600">
             Nenhum registro encontrado nesta tabela.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-stone-200 bg-stone-50 text-xs font-mono font-semibold text-stone-600">
+                <tr className="border-b border-stone-200 bg-stone-50 text-xs font-mono font-semibold text-stone-700">
                   {tableData.columns.map((col) => (
                     <th key={col} className="py-2.5 px-4 whitespace-nowrap">
                       {col}
@@ -251,7 +292,7 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
                         <td
                           key={col}
                           className={`py-2 px-4 whitespace-nowrap tabular-nums ${
-                            val === null ? 'text-stone-400 italic' : 'text-stone-800'
+                            val === null ? 'text-stone-500 italic' : 'text-stone-800'
                           }`}
                         >
                           {display}
@@ -265,6 +306,18 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={confirmResetOpen}
+        title="Restaurar banco para o seed original?"
+        description="Esta ação apaga todas as tabelas e recria os dados iniciais (01_criar_tabelas.sql e 02_inserir_dados.sql). Pedidos, clientes e alterações feitos nesta sessão serão perdidos."
+        confirmLabel="Sim, restaurar banco"
+        cancelLabel="Cancelar"
+        tone="danger"
+        busy={resetting}
+        onCancel={() => setConfirmResetOpen(false)}
+        onConfirm={handleConfirmReset}
+      />
     </div>
   );
 }

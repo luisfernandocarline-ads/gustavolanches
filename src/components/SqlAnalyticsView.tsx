@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Play, Terminal } from 'lucide-react';
 import { ANALYTICAL_QUERIES } from '../db/sqlScripts';
+import { runAnalyticalQueryApi, runCustomSelectQueryApi } from '../services/apiClient';
 import type { QueryResultPayload } from '../types/database';
 import { formatBRL } from '../utils/orderMath';
 
@@ -17,7 +18,6 @@ function formatCellValue(colName: string, value: unknown): string {
   if (value === null || value === undefined) return 'NULL';
   if (value instanceof Date) return value.toISOString().slice(0, 10);
   const str = String(value);
-  // Format ISO date strings nicely for date columns
   if ((colName === 'dia' || colName === 'data_compra') && /^\d{4}-\d{2}-\d{2}T/.test(str)) {
     return str.slice(0, 10);
   }
@@ -39,49 +39,58 @@ export function SqlAnalyticsView() {
   const [result, setResult] = useState<QueryResultPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const requestSeqRef = useRef(0);
 
   const activeQueryDef = ANALYTICAL_QUERIES.find((q) => q.id === selectedQueryId) ?? ANALYTICAL_QUERIES[0];
 
-  const runPreset = async (id: number) => {
+  const runPreset = useCallback(async (id: number) => {
+    const seq = ++requestSeqRef.current;
     setSelectedQueryId(id);
     setMode('preset');
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/consultas/${id}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Erro ao executar consulta.');
+      const json = await runAnalyticalQueryApi(id);
+      if (seq !== requestSeqRef.current) return;
       setResult(json);
     } catch (err) {
+      if (seq !== requestSeqRef.current) return;
       setErrorMsg(err instanceof Error ? err.message : 'Erro ao executar consulta SQL.');
     } finally {
-      setLoading(false);
+      if (seq === requestSeqRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
 
   const runCustom = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (loading) return;
+    if (!customSql.trim()) {
+      setErrorMsg('Digite uma consulta SQL SELECT ou WITH para executar.');
+      return;
+    }
+
+    const seq = ++requestSeqRef.current;
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch('/api/consultas/custom', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sql: customSql }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Erro na consulta SQL.');
+      const json = await runCustomSelectQueryApi(customSql);
+      if (seq !== requestSeqRef.current) return;
       setResult(json);
     } catch (err) {
+      if (seq !== requestSeqRef.current) return;
       setErrorMsg(err instanceof Error ? err.message : 'Erro ao executar SQL customizado.');
     } finally {
-      setLoading(false);
+      if (seq === requestSeqRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     runPreset(1);
-  }, []);
+  }, [runPreset]);
 
   return (
     <div className="space-y-6">
@@ -96,13 +105,13 @@ export function SqlAnalyticsView() {
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 p-1 bg-stone-100 rounded-lg" role="tablist">
+        <div className="flex items-center gap-1.5 p-1 bg-stone-100 rounded-lg" role="tablist" aria-label="Modo de consulta SQL">
           <button
             type="button"
             role="tab"
             aria-selected={mode === 'preset'}
             onClick={() => runPreset(selectedQueryId)}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+            className={`min-h-10 sm:min-h-8 px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
               mode === 'preset'
                 ? 'bg-white text-stone-900 shadow-xs'
                 : 'text-stone-600 hover:text-stone-900'
@@ -114,8 +123,11 @@ export function SqlAnalyticsView() {
             type="button"
             role="tab"
             aria-selected={mode === 'custom'}
-            onClick={() => setMode('custom')}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+            onClick={() => {
+              setMode('custom');
+              setErrorMsg(null);
+            }}
+            className={`inline-flex items-center gap-1.5 min-h-10 sm:min-h-8 px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
               mode === 'custom'
                 ? 'bg-white text-stone-900 shadow-xs'
                 : 'text-stone-600 hover:text-stone-900'
@@ -131,7 +143,7 @@ export function SqlAnalyticsView() {
         {/* Left Sidebar: 13 Queries List */}
         <aside className="lg:col-span-4 bg-white border border-stone-200 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-stone-200 bg-stone-50">
-            <h2 className="text-xs font-bold text-stone-600 uppercase tracking-wider">
+            <h2 className="text-xs font-bold text-stone-700">
               Relatórios de Negócio (DQL)
             </h2>
           </div>
@@ -142,8 +154,9 @@ export function SqlAnalyticsView() {
                 <button
                   key={q.id}
                   type="button"
+                  aria-current={isSelected ? 'true' : undefined}
                   onClick={() => runPreset(q.id)}
-                  className={`w-full text-left px-4 py-3 cursor-pointer ${
+                  className={`w-full text-left px-4 py-3 transition-colors cursor-pointer ${
                     isSelected
                       ? 'bg-red-50/80 text-stone-900'
                       : 'hover:bg-stone-50 text-stone-900'
@@ -172,7 +185,7 @@ export function SqlAnalyticsView() {
             <div className="bg-white border border-stone-200 rounded-xl p-5 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div>
-                  <span className="text-xs font-mono text-stone-500">
+                  <span className="text-xs font-mono text-stone-600">
                     Consulta {activeQueryDef.id} de 13 · {activeQueryDef.concepts.join(' · ')}
                   </span>
                   <h2 className="text-lg font-bold text-stone-900 mt-0.5">
@@ -184,7 +197,7 @@ export function SqlAnalyticsView() {
                   type="button"
                   disabled={loading}
                   onClick={() => runPreset(activeQueryDef.id)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#B91C1C] hover:bg-[#991B1B] rounded-lg shrink-0 cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 min-h-10 sm:min-h-9 px-4 py-2 text-xs font-semibold text-white bg-[#B91C1C] hover:bg-[#991B1B] rounded-lg shrink-0 cursor-pointer disabled:opacity-50"
                 >
                   <Play className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>{loading ? 'Executando...' : 'Reexecutar SQL'}</span>
@@ -200,17 +213,17 @@ export function SqlAnalyticsView() {
               onSubmit={runCustom}
               className="bg-white border border-stone-200 rounded-xl p-5 space-y-4"
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-bold text-stone-900">Console SQL Livre (SELECT)</h2>
-                  <p className="text-xs text-stone-500">
-                    Execute consultas PostgreSQL de leitura diretamente sobre as 11 tabelas.
+                  <p className="text-xs text-stone-600">
+                    Consultas PostgreSQL de leitura sobre as 11 tabelas · atalho Ctrl+Enter para executar.
                   </p>
                 </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#B91C1C] hover:bg-[#991B1B] rounded-lg shrink-0 cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 min-h-10 sm:min-h-9 px-4 py-2 text-xs font-semibold text-white bg-[#B91C1C] hover:bg-[#991B1B] rounded-lg shrink-0 cursor-pointer disabled:opacity-50"
                 >
                   <Play className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>{loading ? 'Executando...' : 'Executar SELECT'}</span>
@@ -224,6 +237,12 @@ export function SqlAnalyticsView() {
                 rows={6}
                 value={customSql}
                 onChange={(e) => setCustomSql(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    runCustom();
+                  }
+                }}
                 className="w-full p-4 bg-stone-950 text-stone-100 rounded-lg text-xs font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#B91C1C]"
               />
             </form>
@@ -245,7 +264,7 @@ export function SqlAnalyticsView() {
                 Resultado PostgreSQL
               </span>
               {result && (
-                <span className="text-xs font-mono text-stone-500 tabular-nums">
+                <span className="text-xs font-mono text-stone-600 tabular-nums">
                   {result.rows.length} {result.rows.length === 1 ? 'linha' : 'linhas'} ·{' '}
                   {result.durationMs} ms
                 </span>
@@ -253,16 +272,16 @@ export function SqlAnalyticsView() {
             </div>
 
             {loading ? (
-              <div className="p-8 text-center text-sm text-stone-500">Executando consulta...</div>
+              <div className="p-8 text-center text-sm text-stone-600">Executando consulta...</div>
             ) : !result || result.rows.length === 0 ? (
-              <div className="p-8 text-center text-sm text-stone-500">
+              <div className="p-8 text-center text-sm text-stone-600">
                 A consulta retornou 0 linhas.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-stone-200 bg-stone-50 text-xs font-mono font-semibold text-stone-600">
+                    <tr className="border-b border-stone-200 bg-stone-50 text-xs font-mono font-semibold text-stone-700">
                       {result.columns.map((col) => (
                         <th key={col} className="py-2.5 px-4 whitespace-nowrap">
                           {col}
@@ -279,18 +298,12 @@ export function SqlAnalyticsView() {
                           const isNumeric =
                             typeof raw === 'number' ||
                             MONEY_COLS.has(col) ||
-                            col === 'total_pedidos' ||
-                            col === 'total_compras' ||
-                            col === 'unidades_vendidas' ||
-                            col === 'vezes_pedido' ||
-                            col === 'total_itens' ||
-                            col === 'estoque_atual' ||
-                            col === 'estoque_minimo';
+                            (raw !== null && raw !== undefined && /^-?\d+(\.\d+)?$/.test(String(raw)));
                           return (
                             <td
                               key={col}
                               className={`py-2.5 px-4 whitespace-nowrap tabular-nums ${
-                                raw === null ? 'text-stone-400 italic' : 'text-stone-800'
+                                raw === null ? 'text-stone-500 italic' : 'text-stone-800'
                               } ${isNumeric ? 'text-right' : 'text-left'}`}
                             >
                               {formatted}

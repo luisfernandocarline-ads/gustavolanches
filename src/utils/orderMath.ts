@@ -1,4 +1,11 @@
-import type { FormaPagamento, StatusPedido, TipoPedido } from '../types/database';
+import type {
+  CartItem,
+  FormaPagamento,
+  ItemPedido,
+  Produto,
+  StatusPedido,
+  TipoPedido,
+} from '../types/database';
 
 export interface AdicionalInput {
   quantidade: number;
@@ -38,6 +45,16 @@ export function calculateItemSubtotal(
     (sum, add) => sum + calculateAdicionalValor(add.quantidade, add.preco_adicional),
     0
   );
+  return roundMoney(base + extras);
+}
+
+export function calculatePersistedItemTotal(item: {
+  preco_unitario: number;
+  quantidade: number;
+  adicionais: Array<{ valor: number }>;
+}): number {
+  const base = roundMoney(item.preco_unitario * item.quantidade);
+  const extras = item.adicionais.reduce((sum, add) => sum + roundMoney(add.valor), 0);
   return roundMoney(base + extras);
 }
 
@@ -83,24 +100,106 @@ export function validatePedidoPayload(
     return {
       valid: false,
       error:
-        'Restrição ck_entrega_com_cliente: pedido de ENTREGA exige um cliente selecionado (com endereço).',
+        'Pedido para entrega exige um cliente selecionado com endereço.',
     };
   }
 
   if (!Array.isArray(payload.itens) || payload.itens.length === 0) {
-    return { valid: false, error: 'O pedido deve conter pelo menos 1 item (item_pedido).' };
+    return { valid: false, error: 'Adicione pelo menos 1 item ao pedido antes de finalizar.' };
   }
 
   for (const item of payload.itens) {
     if (!Number.isInteger(item.id_produto) || item.id_produto <= 0) {
-      return { valid: false, error: 'Produto inválido em item_pedido.' };
+      return { valid: false, error: 'Produto inválido no pedido.' };
     }
     if (!Number.isInteger(item.quantidade) || item.quantidade <= 0) {
-      return { valid: false, error: 'Quantidade deve ser maior que zero (CHECK quantidade > 0).' };
+      return { valid: false, error: 'A quantidade do item deve ser maior que zero.' };
     }
   }
 
   return { valid: true };
+}
+
+export function validateClienteInput(nome: string): { valid: boolean; error?: string } {
+  const clean = nome.trim();
+  if (!clean) {
+    return { valid: false, error: 'Informe o nome completo do cliente para continuar.' };
+  }
+  if (clean.length < 2) {
+    return { valid: false, error: 'O nome do cliente deve ter pelo menos 2 caracteres.' };
+  }
+  return { valid: true };
+}
+
+export function normalizeSearchText(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+export function filterProdutos(
+  produtos: Produto[],
+  selectedCategoriaId: number | 'all',
+  query: string
+): Produto[] {
+  const q = normalizeSearchText(query);
+  return produtos.filter((p) => {
+    const catMatch = selectedCategoriaId === 'all' || p.id_categoria === selectedCategoriaId;
+    if (!catMatch) return false;
+    if (!q) return true;
+    return (
+      normalizeSearchText(p.nome).includes(q) ||
+      normalizeSearchText(p.descricao ?? '').includes(q) ||
+      normalizeSearchText(p.categoria_nome ?? '').includes(q) ||
+      (p.ingredientes ?? []).some((ing) => normalizeSearchText(ing).includes(q))
+    );
+  });
+}
+
+function getCartItemSignature(item: Pick<CartItem, 'id_produto' | 'observacao' | 'adicionais'>): string {
+  const adds = [...item.adicionais]
+    .filter((a) => a.quantidade > 0)
+    .sort((a, b) => a.id_ingrediente - b.id_ingrediente)
+    .map((a) => `${a.id_ingrediente}:${a.quantidade}`)
+    .join(',');
+  return `${item.id_produto}|${item.observacao.trim()}|${adds}`;
+}
+
+export function upsertCartItem(
+  cart: CartItem[],
+  incoming: CartItem,
+  editingTempId?: string
+): CartItem[] {
+  if (editingTempId) {
+    return cart.map((item) =>
+      item.tempId === editingTempId ? { ...incoming, tempId: editingTempId } : item
+    );
+  }
+
+  const signature = getCartItemSignature(incoming);
+  const existingIdx = cart.findIndex((item) => getCartItemSignature(item) === signature);
+  if (existingIdx === -1) {
+    return [...cart, incoming];
+  }
+
+  return cart.map((item, idx) => {
+    if (idx !== existingIdx) return item;
+    // Merge base quantity and keep additional quantities scaled proportionally when identical
+    const mergedAdicionais = item.adicionais.map((add) => {
+      const match = incoming.adicionais.find((a) => a.id_ingrediente === add.id_ingrediente);
+      return {
+        ...add,
+        quantidade: add.quantidade + (match?.quantidade ?? 0),
+      };
+    });
+    return {
+      ...item,
+      quantidade: item.quantidade + incoming.quantidade,
+      adicionais: mergedAdicionais,
+    };
+  });
 }
 
 export function getAllowedNextStatuses(current: StatusPedido): StatusPedido[] {

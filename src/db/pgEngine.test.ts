@@ -1,7 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
-import { ANALYTICAL_QUERIES, DDL_SQL, SEED_SQL, TABLE_COUNTS_SQL } from './sqlScripts';
+import { ANALYTICAL_QUERIES, DDL_SQL, SEED_SQL, TABLE_COUNTS_SQL } from './sqlScripts.ts';
+import {
+  createClienteInDb,
+  createPedidoInDb,
+  ensureSchemaAndSeed,
+  getBootstrapDataFromDb,
+  getTableRowsFromDb,
+  resetDatabaseInDb,
+  runAnalyticalQueryInDb,
+  runCustomSelectQueryInDb,
+  updatePedidoStatusInDb,
+} from './pgCore.ts';
 
 test('PostgreSQL DDL, SEED_SQL, constraints, and all 13 analytical queries execute cleanly', async () => {
   const db = new PGlite();
@@ -41,3 +52,52 @@ test('PostgreSQL DDL, SEED_SQL, constraints, and all 13 analytical queries execu
 
   await db.close();
 });
+
+test('pgCore executes full POS bootstrap, cliente creation, pedido creation, status update, table inspection, and reset', async () => {
+  const db = new PGlite();
+  await db.waitReady;
+  await ensureSchemaAndSeed(db);
+
+  const initial = await getBootstrapDataFromDb(db);
+  assert.equal(initial.produtos.length, 25);
+  assert.equal(initial.pedidos.length, 15);
+
+  const cliente = await createClienteInDb(db, 'Mariana Teste', '(11) 99999-0000', 'Rua das Flores, 10');
+  assert.equal(cliente.nome, 'Mariana Teste');
+
+  const { id_pedido } = await createPedidoInDb(db, {
+    tipo: 'ENTREGA',
+    id_cliente: cliente.id_cliente,
+    forma_pagamento: 'PIX',
+    itens: [
+      {
+        id_produto: initial.produtos[0].id_produto,
+        quantidade: 2,
+        observacao: 'Sem cebola',
+        adicionais: [],
+      },
+    ],
+  });
+
+  await updatePedidoStatusInDb(db, id_pedido, 'EM_PREPARO');
+  const updated = await getBootstrapDataFromDb(db);
+  const createdOrder = updated.pedidos.find((p) => p.id_pedido === id_pedido);
+  assert.ok(createdOrder);
+  assert.equal(createdOrder.status, 'EM_PREPARO');
+  assert.equal(createdOrder.cliente_nome, 'Mariana Teste');
+
+  const tableRows = await getTableRowsFromDb(db, 'pedido');
+  assert.equal(tableRows.rows.length, 16);
+
+  const analytical = await runAnalyticalQueryInDb(db, 1);
+  assert.ok(analytical.rows.length > 0);
+
+  const custom = await runCustomSelectQueryInDb(db, 'SELECT COUNT(*)::int AS total FROM pedido');
+  assert.equal(custom.rows[0].total, 16);
+
+  const reset = await resetDatabaseInDb(db);
+  assert.equal(reset.pedidos.length, 15);
+
+  await db.close();
+});
+
