@@ -67,7 +67,7 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
     try {
       await onResetDatabase();
       setConfirmResetOpen(false);
-      setResetMessage('Banco PostgreSQL restaurado com sucesso para os dados iniciais (seed).');
+      setResetMessage('Pedidos e clientes zerados com sucesso. Cardápio e estoque preservados.');
     } catch (err) {
       setConfirmResetOpen(false);
       setResetError(err instanceof Error ? err.message : 'Falha ao restaurar o banco de dados.');
@@ -106,7 +106,7 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
             className="inline-flex items-center gap-1.5 min-h-10 sm:min-h-9 px-3.5 py-2 text-xs font-semibold text-[#B91C1C] bg-white border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>{resetting ? 'Restaurando...' : 'Restaurar Seed Original'}</span>
+            <span>{resetting ? 'Zerando...' : 'Zerar Pedidos e Clientes'}</span>
           </button>
         </div>
       </div>
@@ -309,9 +309,9 @@ export function SchemaExplorerView({ tableCounts, onResetDatabase }: SchemaExplo
 
       <ConfirmDialog
         open={confirmResetOpen}
-        title="Restaurar banco para o seed original?"
-        description="Esta ação apaga todas as tabelas e recria os dados iniciais (01_criar_tabelas.sql e 02_inserir_dados.sql). Pedidos, clientes e alterações feitos nesta sessão serão perdidos."
-        confirmLabel="Sim, restaurar banco"
+        title="Zerar pedidos e clientes?"
+        description="Esta ação apaga todos os pedidos e clientes cadastrados para recomeçar do zero, mantendo o cardápio (25 produtos), ingredientes, fornecedores e compras intactos."
+        confirmLabel="Sim, zerar pedidos e clientes"
         cancelLabel="Cancelar"
         tone="danger"
         busy={resetting}

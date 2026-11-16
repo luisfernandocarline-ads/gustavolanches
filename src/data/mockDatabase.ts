@@ -29,7 +29,8 @@ import {
   validatePedidoPayload,
 } from '../utils/orderMath.ts';
 
-export const STORAGE_KEY = 'gustavo_lanches_local_db_v1';
+export const STORAGE_KEY = 'gustavo_lanches_local_db_v2';
+export const LEGACY_STORAGE_KEYS = ['gustavo_lanches_local_db_v1'] as const;
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -239,129 +240,10 @@ export function createInitialSeedState(): LocalDatabaseState {
     }
   }
 
-  const clientes: Cliente[] = [
-    { id_cliente: 1, nome: 'Mariana Souza', telefone: '(35) 99100-0001', endereco: 'Rua das Flores, 120 - Centro' },
-    { id_cliente: 2, nome: 'Carlos Eduardo Lima', telefone: '(35) 99100-0002', endereco: 'Av. Brasil, 845 - Jardim América' },
-    { id_cliente: 3, nome: 'Fernanda Alves', telefone: '(35) 99100-0003', endereco: 'Rua Minas Gerais, 77 - Vila Nova' },
-    { id_cliente: 4, nome: 'João Pedro Santos', telefone: '(35) 99100-0004', endereco: 'Rua Sete de Setembro, 310 - Centro' },
-    { id_cliente: 5, nome: 'Patrícia Oliveira', telefone: '(35) 99100-0005', endereco: 'Rua das Acácias, 59 - Jardim Primavera' },
-    { id_cliente: 6, nome: 'Rafael Mendes', telefone: '(35) 99100-0006', endereco: 'Rua Tiradentes, 402 - Bela Vista' },
-    { id_cliente: 7, nome: 'Juliana Costa', telefone: '(35) 99100-0007', endereco: 'Av. Getúlio Vargas, 1500 - Centro' },
-    { id_cliente: 8, nome: 'Lucas Ferreira', telefone: '(35) 99100-0008', endereco: 'Rua dos Ipês, 88 - Jardim Europa' },
-    { id_cliente: 9, nome: 'Camila Rocha', telefone: '(35) 99100-0009', endereco: 'Rua Santa Luzia, 215 - Vila Santa Cruz' },
-    { id_cliente: 10, nome: 'Bruno Carvalho', telefone: '(35) 99100-0010', endereco: 'Rua Dom Pedro II, 640 - Centro' },
-    { id_cliente: 11, nome: 'Aline Martins', telefone: '(35) 99100-0011', endereco: 'Rua das Palmeiras, 33 - Jardim Planalto' },
-    { id_cliente: 12, nome: 'Thiago Ribeiro', telefone: '(35) 99100-0012', endereco: 'Rua São José, 190 - Vila Operária' },
-  ];
-
-  const basePedidos: Array<Omit<PedidoRow, 'valor_total'>> = [
-    { id_pedido: 1, id_cliente: 1, data_hora: '2026-11-02 19:10', tipo: 'ENTREGA', status: 'ENTREGUE', forma_pagamento: 'PIX' },
-    { id_pedido: 2, id_cliente: null, data_hora: '2026-11-02 19:40', tipo: 'BALCAO', status: 'ENTREGUE', forma_pagamento: 'DINHEIRO' },
-    { id_pedido: 3, id_cliente: 2, data_hora: '2026-11-02 20:15', tipo: 'ENTREGA', status: 'ENTREGUE', forma_pagamento: 'CARTAO' },
-    { id_pedido: 4, id_cliente: 3, data_hora: '2026-11-03 19:05', tipo: 'ENTREGA', status: 'ENTREGUE', forma_pagamento: 'PIX' },
-    { id_pedido: 5, id_cliente: 11, data_hora: '2026-11-03 20:30', tipo: 'BALCAO', status: 'ENTREGUE', forma_pagamento: 'CARTAO' },
-    { id_pedido: 6, id_cliente: 4, data_hora: '2026-11-04 19:20', tipo: 'ENTREGA', status: 'ENTREGUE', forma_pagamento: 'DINHEIRO' },
-    { id_pedido: 7, id_cliente: 5, data_hora: '2026-11-04 21:00', tipo: 'BALCAO', status: 'ENTREGUE', forma_pagamento: 'PIX' },
-    { id_pedido: 8, id_cliente: 6, data_hora: '2026-11-05 19:45', tipo: 'ENTREGA', status: 'ENTREGUE', forma_pagamento: 'PIX' },
-    { id_pedido: 9, id_cliente: null, data_hora: '2026-11-05 20:10', tipo: 'BALCAO', status: 'ENTREGUE', forma_pagamento: 'DINHEIRO' },
-    { id_pedido: 10, id_cliente: 7, data_hora: '2026-11-06 19:30', tipo: 'ENTREGA', status: 'ENTREGUE', forma_pagamento: 'CARTAO' },
-    { id_pedido: 11, id_cliente: 1, data_hora: '2026-11-06 20:50', tipo: 'ENTREGA', status: 'ENTREGUE', forma_pagamento: 'PIX' },
-    { id_pedido: 12, id_cliente: 8, data_hora: '2026-11-07 19:15', tipo: 'ENTREGA', status: 'ENTREGUE', forma_pagamento: 'DINHEIRO' },
-    { id_pedido: 13, id_cliente: 12, data_hora: '2026-11-07 20:00', tipo: 'BALCAO', status: 'ENTREGUE', forma_pagamento: 'PIX' },
-    { id_pedido: 14, id_cliente: 9, data_hora: '2026-11-08 19:35', tipo: 'ENTREGA', status: 'EM_PREPARO', forma_pagamento: 'PIX' },
-    { id_pedido: 15, id_cliente: 10, data_hora: '2026-11-08 20:20', tipo: 'ENTREGA', status: 'RECEBIDO', forma_pagamento: 'CARTAO' },
-  ];
-
-  const prodById = new Map(produtos.map((p) => [p.id_produto, p]));
-  const ingById = new Map(ingredientes.map((i) => [i.id_ingrediente, i]));
-
-  const seedItems: Array<[number, string, number, string | null]> = [
-    [1, 'X-Tudo', 2, 'Sem milho'],
-    [1, 'Batata Frita Grande', 1, 'Sabor cheddar e bacon'],
-    [2, 'X-Bacon', 1, null],
-    [3, 'X-Frango Tudo', 1, null],
-    [3, 'X-Salada', 1, null],
-    [4, 'Especial da Casa', 1, null],
-    [4, 'Insano', 1, null],
-    [4, 'Batata Frita Média', 1, 'Sabor catupiry e bacon'],
-    [5, 'X-Burguer', 2, null],
-    [5, 'X-Bauru', 1, null],
-    [6, 'X-Egg Salada', 1, null],
-    [6, 'X-Egg Catupiry', 1, null],
-    [7, 'X-Filé Tudo', 1, null],
-    [7, 'X-Tudo', 1, null],
-    [8, 'Omelete de Frango', 1, null],
-    [8, 'X-Lombo', 1, null],
-    [9, 'X-Salada', 2, 'Sem tomate'],
-    [10, 'Duplo Cheddar Bacon', 2, null],
-    [10, 'Batata Frita Grande', 1, 'Sabor cheddar e bacon'],
-    [11, 'X-Tudo', 1, null],
-    [11, 'X-Catupa', 1, null],
-    [12, 'Big Saboritos', 1, null],
-    [12, 'Especial Salada', 1, null],
-    [12, 'Batata Frita Média', 1, 'Sabor catupiry e bacon'],
-    [13, 'X-Especial 2000', 1, null],
-    [14, 'X-Lombo Tudo', 1, null],
-    [14, 'Omelete de Lombo', 1, null],
-    [15, 'X-Filé', 1, null],
-    [15, 'Omelete de Filé', 1, null],
-  ];
-
-  const itensPedido: ItemPedidoRow[] = seedItems.map(([id_pedido, prodName, quantidade, observacao], idx) => {
-    const id_produto = prodIdByName.get(prodName)!;
-    const prod = prodById.get(id_produto)!;
-    return {
-      id_item_pedido: idx + 1,
-      id_pedido,
-      id_produto,
-      quantidade,
-      preco_unitario: prod.preco,
-      observacao,
-    };
-  });
-
-  const seedAdditionals: Array<[number, string, string, number]> = [
-    [2, 'X-Bacon', 'Ovo', 1],
-    [3, 'X-Frango Tudo', 'Cheddar americano', 1],
-    [4, 'Insano', 'Bacon', 1],
-    [6, 'X-Egg Salada', 'Bacon', 1],
-    [7, 'X-Tudo', 'Catupiry', 1],
-    [10, 'Duplo Cheddar Bacon', 'Cebola roxa', 2],
-    [12, 'Big Saboritos', 'Muçarela', 1],
-    [15, 'X-Filé', 'Ovo', 1],
-  ];
-
-  const itensPedidoAdicional: ItemPedidoAdicionalRow[] = seedAdditionals.map(
-    ([id_pedido, prodName, ingName, quantidade]) => {
-      const id_produto = prodIdByName.get(prodName)!;
-      const item = itensPedido.find((ip) => ip.id_pedido === id_pedido && ip.id_produto === id_produto)!;
-      const id_ingrediente = ingIdByName.get(ingName)!;
-      const ing = ingById.get(id_ingrediente)!;
-      return {
-        id_item_pedido: item.id_item_pedido,
-        id_ingrediente,
-        quantidade,
-        valor: calculateAdicionalValor(quantidade, ing.preco_adicional ?? 0),
-      };
-    }
-  );
-
-  const pedidos: PedidoRow[] = basePedidos.map((p) => {
-    const pItems = itensPedido
-      .filter((ip) => ip.id_pedido === p.id_pedido)
-      .map((ip) => ({
-        id_produto: ip.id_produto,
-        quantidade: ip.quantidade,
-        preco_unitario: ip.preco_unitario,
-        adicionais: itensPedidoAdicional
-          .filter((a) => a.id_item_pedido === ip.id_item_pedido)
-          .map((a) => ({ quantidade: a.quantidade, valor: a.valor })),
-      }));
-    return {
-      ...p,
-      valor_total: calculateOrderTotal(pItems),
-    };
-  });
+  const clientes: Cliente[] = [];
+  const pedidos: PedidoRow[] = [];
+  const itensPedido: ItemPedidoRow[] = [];
+  const itensPedidoAdicional: ItemPedidoAdicionalRow[] = [];
 
   const fornIdByName = new Map(fornecedores.map((f) => [f.nome, f.id_fornecedor]));
   const baseCompras: Array<[string, string]> = [
@@ -465,6 +347,17 @@ export function saveLocalDbState(state: LocalDatabaseState, storage: StorageLike
   }
 }
 
+function clearLegacyStorage(storage: StorageLike | null): void {
+  if (!storage) return;
+  for (const key of LEGACY_STORAGE_KEYS) {
+    try {
+      storage.removeItem(key);
+    } catch {
+      // Ignore removal errors
+    }
+  }
+}
+
 export function readLocalDbState(storage: StorageLike | null = getDefaultStorage()): LocalDatabaseState {
   if (storage) {
     try {
@@ -480,6 +373,7 @@ export function readLocalDbState(storage: StorageLike | null = getDefaultStorage
     }
   }
 
+  clearLegacyStorage(storage);
   const seeded = createInitialSeedState();
   saveLocalDbState(seeded, storage);
   return seeded;
@@ -487,6 +381,7 @@ export function readLocalDbState(storage: StorageLike | null = getDefaultStorage
 
 export function resetLocalDbState(storage: StorageLike | null = getDefaultStorage()): LocalDatabaseState {
   const seeded = createInitialSeedState();
+  clearLegacyStorage(storage);
   if (storage) {
     try {
       storage.removeItem(STORAGE_KEY);
